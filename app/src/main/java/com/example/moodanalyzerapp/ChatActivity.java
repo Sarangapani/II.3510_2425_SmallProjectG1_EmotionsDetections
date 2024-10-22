@@ -1,35 +1,46 @@
 package com.example.moodanalyzerapp;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log; // Import Log class
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ChatActivity extends AppCompatActivity {
-    private static final String TAG = "ChatActivity"; // Tag for logging
+    private static final String TAG = "ChatActivity";
     private RecyclerView chatRecyclerView;
     private ChatAdapter chatAdapter;
-    private List<ChatMessage> messages; // List of chat messages
+    private List<ChatMessage> messages;
     private EditText messageInput;
-    private DatabaseReference databaseReference; // Firebase Database reference
+    private DatabaseReference databaseReference;
+    private FirebaseAuth mAuth;
 
-    // A map to hold user queries and responses
     private Map<String, String> responses;
 
     @Override
@@ -47,75 +58,51 @@ public class ChatActivity extends AppCompatActivity {
         chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         chatRecyclerView.setAdapter(chatAdapter);
 
-        // Initialize Firebase Database reference
         databaseReference = FirebaseDatabase.getInstance().getReference("chats");
-
-        // Load existing chat messages from Firebase
         loadChatMessages();
 
-        // Initialize responses map
-        responses = new HashMap<>();
-        initializeResponses();
-
+        mAuth = FirebaseAuth.getInstance();
         sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String userMessage = messageInput.getText().toString().trim();
                 if (!userMessage.isEmpty()) {
-                    long timestamp = System.currentTimeMillis(); // Get current timestamp
+                    long timestamp = System.currentTimeMillis();
                     ChatMessage userChatMessage = new ChatMessage(userMessage, "You", timestamp);
-                    messages.add(userChatMessage); // Add user message
+                    messages.add(userChatMessage);
                     chatAdapter.notifyItemInserted(messages.size() - 1);
                     chatRecyclerView.scrollToPosition(messages.size() - 1);
-                    messageInput.setText(""); // Clear the input field
+                    messageInput.setText("");
 
-                    // Save user message to Firebase
                     databaseReference.push().setValue(userChatMessage).addOnSuccessListener(aVoid -> {
-                        // Log the message sent
                         Log.d(TAG, "Sent message: " + userChatMessage.getMessage());
                     }).addOnFailureListener(e -> {
                         Log.e(TAG, "Failed to send message: " + e.getMessage());
                     });
 
-                    // Generate a bot reply with a delay
-                    new Handler().postDelayed(() -> {
-                        String botReply = getBotReply(userMessage);
-                        if (!botReply.isEmpty()) {
-                            ChatMessage botChatMessage = new ChatMessage(botReply, "Bot", System.currentTimeMillis());
-                            messages.add(botChatMessage); // Add bot reply
-                            chatAdapter.notifyItemInserted(messages.size() - 1);
-                            chatRecyclerView.scrollToPosition(messages.size() - 1);
+                    String uid = mAuth.getCurrentUser().getUid(); // Get the unique user ID
+                    String apiUrl = "http://api.brainshop.ai/get?bid=183471&key=MyTrsbEGBm0YY25h&uid=" + uid + "&msg=" + userMessage;
 
-                            // Save bot reply to Firebase
-                            databaseReference.push().setValue(botChatMessage).addOnSuccessListener(aVoid -> {
-                                // Log the bot reply
-                                Log.d(TAG, "Received message: " + botChatMessage.getMessage());
-                            }).addOnFailureListener(e -> {
-                                Log.e(TAG, "Failed to send bot reply: " + e.getMessage());
-                            });
-                        }
-                    }, 1000); // 1 second delay
+                    new SendMessageTask(apiUrl).execute();
                 }
             }
         });
     }
 
-    // Load existing chat messages from Firebase
     private void loadChatMessages() {
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                messages.clear(); // Clear the current messages
+                messages.clear();
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                     ChatMessage chatMessage = snapshot.getValue(ChatMessage.class);
                     if (chatMessage != null) {
                         messages.add(chatMessage);
-                        // Log the loaded message
                         Log.d(TAG, "Loaded message: " + chatMessage.getMessage());
                     }
                 }
-                chatAdapter.notifyDataSetChanged(); // Notify adapter of data change
-                chatRecyclerView.scrollToPosition(messages.size() - 1); // Scroll to the last message
+                chatAdapter.notifyDataSetChanged();
+                chatRecyclerView.scrollToPosition(messages.size() - 1);
             }
 
             @Override
@@ -125,31 +112,64 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    // Initialize responses for the bot
-    private void initializeResponses() {
-        responses.put("hello", "Hello! How can I assist you today?");
-        responses.put("hi", "Hello! How can I assist you today?");
-        responses.put("how are you", "I'm just a bot, but I'm here to help you!");
-        responses.put("what is your name", "I am your friendly chatbot!");
-        responses.put("help", "Sure! What do you need help with?");
-        responses.put("bye", "Goodbye! Have a great day!");
-        responses.put("thank you", "You're welcome! If you have more questions, feel free to ask.");
-        // Add more responses as needed
-    }
+    private class SendMessageTask extends AsyncTask<Void, Void, String> {
+        private String apiUrl;
 
-    // Enhanced bot reply logic
-    private String getBotReply(String userMessage) {
-        // Convert user message to lower case for matching
-        String normalizedMessage = userMessage.toLowerCase();
+        SendMessageTask(String apiUrl) {
+            this.apiUrl = apiUrl;
+        }
 
-        // Check for matching responses
-        for (String keyword : responses.keySet()) {
-            if (normalizedMessage.contains(keyword)) {
-                return responses.get(keyword);
+        @Override
+        protected String doInBackground(Void... voids) {
+            try {
+                URL url = new URL(apiUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(10000);  // Set connection timeout to 10 seconds
+                connection.setReadTimeout(10000);     // Set read timeout to 10 seconds
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = in.readLine()) != null) {
+                    response.append(line);
+                }
+                in.close();
+                return response.toString();
+            } catch (SocketTimeoutException e) {
+                Log.e(TAG, "Connection timed out", e);
+                return "(Time out)";  // Return a timeout message
+            } catch (IOException e) {
+                Log.e(TAG, "Error fetching response from Brainshop", e);
+                return null;
             }
         }
 
-        // Default response if no match found
-        return "I'm sorry, I didn't understand that. Can you please rephrase?";
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null) {
+                Log.d(TAG, "Raw response: " + result);
+                if (result.startsWith("{") && result.endsWith("}")) {
+                    try {
+                        JSONObject jsonObject = new JSONObject(result);
+                        String botReply = jsonObject.getString("cnt");
+                        long timestamp = System.currentTimeMillis();
+                        ChatMessage botChatMessage = new ChatMessage(botReply, "Bot", timestamp);
+                        messages.add(botChatMessage);
+                        chatAdapter.notifyItemInserted(messages.size() - 1);
+                        chatRecyclerView.scrollToPosition(messages.size() - 1);
+                        databaseReference.push().setValue(botChatMessage);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing JSON response", e);
+                    }
+                } else {
+                    Log.e(TAG, "Unexpected response format: " + result);
+                    Toast.makeText(ChatActivity.this, "Unexpected response format", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Log.e(TAG, "Failed to get response from Brainshop");
+                Toast.makeText(ChatActivity.this, "Failed to get response from Brainshop", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
+
 }

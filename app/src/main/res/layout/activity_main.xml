@@ -13,6 +13,20 @@
         android:layout_marginBottom="16dp"
         android:scaleType="centerCrop" />
 
+    <!-- TextView for displaying the detected mood -->
+    <TextView
+        android:id="@+id/moodTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Detected mood will appear here."
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:padding="8dp"
+        android:background="@drawable/suggestion_background"
+        android:textColor="@android:color/black" />
+
     <!-- TextView for displaying the activity suggestion -->
     <TextView
         android:id="@+id/suggestionTextView"
@@ -22,9 +36,9 @@
         android:textSize="16sp"
         android:layout_marginTop="16dp"
         android:visibility="gone"
-    android:padding="8dp"
-    android:background="@drawable/suggestion_background"
-    android:textColor="@android:color/black" />
+        android:padding="8dp"
+        android:background="@drawable/suggestion_background"
+        android:textColor="@android:color/black" />
 
     <!-- Space to push the buttons to the bottom -->
     <Space

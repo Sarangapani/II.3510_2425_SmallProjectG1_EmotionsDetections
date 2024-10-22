@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -25,8 +26,10 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import org.tensorflow.lite.Interpreter;
 
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
@@ -34,16 +37,19 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
 
     private FirebaseAuth mAuth;
-    private FirebaseFirestore firestore; // Reference to Firestore
+    private FirebaseFirestore firestore;
     private Interpreter tflite;
     private ImageView imageView;
-    private TextView suggestionTextView; // Declare TextView for suggestions
+    private TextView moodTextView; // TextView for displaying mood
+    private TextView suggestionTextView; // TextView for displaying suggestions
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,9 +57,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mAuth = FirebaseAuth.getInstance();
-        firestore = FirebaseFirestore.getInstance(); // Initialize Firestore
+        firestore = FirebaseFirestore.getInstance();
         imageView = findViewById(R.id.imageView);
-        suggestionTextView = findViewById(R.id.suggestionTextView); // Initialize TextView
+        moodTextView = findViewById(R.id.moodTextView); // Initialize TextView for mood
+        suggestionTextView = findViewById(R.id.suggestionTextView); // Initialize TextView for suggestion
 
         // Load TensorFlow Lite model
         try {
@@ -125,9 +132,15 @@ public class MainActivity extends AppCompatActivity {
         int predictedIndex = argMax(output[0]);
         String emotion = mapIndexToEmotion(predictedIndex);
 
+        displayMood(emotion);  // Display mood in the TextView
         suggestActivity(emotion);  // Display suggestion in TextView
         storeDecision(emotion);     // Store decision in Firestore
         imageView.setImageBitmap(bitmap);
+    }
+
+    private void displayMood(String emotion) {
+        moodTextView.setText("Detected Mood: " + emotion); // Set the detected mood
+        moodTextView.setVisibility(View.VISIBLE); // Make the TextView visible
     }
 
     private int argMax(float[] array) {
@@ -186,11 +199,9 @@ public class MainActivity extends AppCompatActivity {
         analysisData.put("mood", emotion);
         analysisData.put("timestamp", formattedDate);
 
-        // Store the data in Firestore under moodAnalysis -> userId -> analyses
         firestore.collection("moodAnalysis")
                 .document(userId)
-                .collection("analyses")  // Create a subcollection for each user's analyses
-                .add(analysisData)  // Use add to create a new document
+                .set(analysisData)
                 .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Analysis saved successfully!"))
                 .addOnFailureListener(e -> Log.e("MainActivity", "Error saving analysis: " + e.getMessage()));
     }
@@ -210,15 +221,39 @@ public class MainActivity extends AppCompatActivity {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, proceed with camera functionality
-            } else {
-                Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show();
+    private static class SendMessageTask extends AsyncTask<String, Void, String> {
+        private static final String API_URL = "http://api.brainshop.ai/get?bid=183471&key=MyTrsbEGBm0YY25h&uid=%s&msg=%s";
+        private final String uid;
+
+        SendMessageTask(String uid) {
+            this.uid = uid;
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            String message = params[0];
+            String apiUrl = String.format(API_URL, uid, message);
+            try {
+                URL url = new URL(apiUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = in.readLine()) != null) {
+                    response.append(line);
+                }
+                in.close();
+                return response.toString();
+            } catch (IOException e) {
+                Log.e("SendMessageTask", "Error fetching response from Brainshop", e);
+                return null;
             }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            // Handle the result from Brainshop API here (optional)
         }
     }
 }

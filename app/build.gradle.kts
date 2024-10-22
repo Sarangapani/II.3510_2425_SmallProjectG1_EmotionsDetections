@@ -48,6 +48,8 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-firestore:24.3.1")
     implementation (libs.firebase.database.vversion)
+    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
+
 
     implementation (libs.play.services.auth)
 
