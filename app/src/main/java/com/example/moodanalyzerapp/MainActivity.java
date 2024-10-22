@@ -186,10 +186,11 @@ public class MainActivity extends AppCompatActivity {
         analysisData.put("mood", emotion);
         analysisData.put("timestamp", formattedDate);
 
-        // Store the data in Firestore under moodAnalysis -> userId
+        // Store the data in Firestore under moodAnalysis -> userId -> analyses
         firestore.collection("moodAnalysis")
                 .document(userId)
-                .set(analysisData) // Using set to overwrite or create the document
+                .collection("analyses")  // Create a subcollection for each user's analyses
+                .add(analysisData)  // Use add to create a new document
                 .addOnSuccessListener(aVoid -> Log.d("MainActivity", "Analysis saved successfully!"))
                 .addOnFailureListener(e -> Log.e("MainActivity", "Error saving analysis: " + e.getMessage()));
     }
@@ -207,5 +208,17 @@ public class MainActivity extends AppCompatActivity {
         long startOffset = getAssets().openFd(modelPath).getStartOffset();
         long declaredLength = getAssets().openFd(modelPath).getDeclaredLength();
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, proceed with camera functionality
+            } else {
+                Toast.makeText(this, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 }
