@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "432545163167",
+    "project_id": "moodanalyzerapp",
+    "storage_bucket": "moodanalyzerapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:432545163167:android:499044f604d52743cbffaa",
+        "android_client_info": {
+          "package_name": "com.example.moodanalyzerapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHUtkWSYZXZ0nFugX1LwyFnG4urgeNoUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginBottom="16dp"
+        android:scaleType="centerCrop" />
+
+    <!-- TextView for displaying the activity suggestion -->
+    <TextView
+        android:id="@+id/suggestionTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Activity suggestion will appear here."
+        android:textSize="16sp"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+    android:padding="8dp"
+    android:background="@drawable/suggestion_background"
+    android:textColor="@android:color/black" />
+
+    <!-- Space to push the buttons to the bottom -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <Button
+        android:id="@+id/captureButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Capture Selfie"
+        android:textColor="@android:color/white"
+        android:background="@drawable/rounded_light_green_button"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/chatButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Chat with AI"
+        android:textColor="@android:color/white"
+        android:background="@drawable/rounded_dark_green_button"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/logoutButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Logout"
+        android:textColor="@android:color/white"
+        android:background="@drawable/rounded_light_red_button" />
+
+</LinearLayout>
